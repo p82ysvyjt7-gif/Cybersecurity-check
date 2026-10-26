@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Cyberhack v1</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: single column tool. Input form first, verdict panel with score meter below, reasons listed by where they were found. */
+  :root {
+    --bg: #f3f5f7;
+    --surface: #ffffff;
+    --fg: #14202b;
+    --muted: #5a6b7a;
+    --line: #d6dde3;
+    --accent: #0b6e8a;
+    --accent-fg: #ffffff;
+    --safe: #1a7f4b;
+    --safe-bg: #dff3e7;
+    --warn: #9a5b00;
+    --warn-bg: #fdecc8;
+    --danger: #b3261e;
+    --danger-bg: #fbdcd9;
+    --font-display: "Bricolage Grotesque", "Avenir Next", "Helvetica Neue", sans-serif;
+    --font-body: "Source Sans 3", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e151c;
+      --surface: #16212b;
+      --fg: #e6edf3;
+      --muted: #93a4b3;
+      --line: #263543;
+      --accent: #4cc2e0;
+      --accent-fg: #06222b;
+      --safe: #5fd394;
+      --safe-bg: #14382a;
+      --warn: #f0b84a;
+      --warn-bg: #3d2f10;
+      --danger: #ff8a80;
+      --danger-bg: #4a1b18;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e151c;
+    --surface: #16212b;
+    --fg: #e6edf3;
+    --muted: #93a4b3;
+    --line: #263543;
+    --accent: #4cc2e0;
+    --accent-fg: #06222b;
+    --safe: #5fd394;
+    --safe-bg: #14382a;
+    --warn: #f0b84a;
+    --warn-bg: #3d2f10;
+    --danger: #ff8a80;
+    --danger-bg: #4a1b18;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+  header { display: flex; flex-direction: column; gap: 6px; }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 6vw, 38px);
+    line-height: 1.1;
+    margin: 0;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .sub { margin: 0; color: var(--muted); max-width: 60ch; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  label, .label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  input[type="text"], textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 16px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px 12px;
+  }
+  textarea { min-height: 130px; resize: vertical; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 10px 18px;
+    min-height: 44px;
+  }
+  .primary { background: var(--accent); color: var(--accent-fg); border: 1px solid var(--accent); }
+  .ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  .ghost:hover { border-color: var(--accent); }
+
+  .examples { display: flex; flex-direction: column; gap: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips button { font-weight: 400; font-size: 14px; padding: 6px 12px; min-height: 36px; }
+
+  .verdict-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+  .pill {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 999px;
+  }
+  .pill[data-level="safe"] { background: var(--safe-bg); color: var(--safe); }
+  .pill[data-level="suspicious"] { background: var(--warn-bg); color: var(--warn); }
+  .pill[data-level="dangerous"] { background: var(--danger-bg); color: var(--danger); }
+  .score { font-family: var(--font-mono); font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .score strong { font-size: 22px; color: var(--fg); }
+
+  .meter { position: relative; display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 4px; }
+  .meter span { height: 100%; }
+  .z-safe { flex: 3; background: var(--safe-bg); }
+  .z-warn { flex: 3; background: var(--warn-bg); }
+  .z-danger { flex: 4; background: var(--danger-bg); }
+  .marker {
+    position: absolute; top: -4px; width: 4px; height: 18px;
+    background: var(--fg); border-radius: 2px; transform: translateX(-2px);
+  }
+  .scale {
+    display: flex; font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .scale span:nth-child(1) { flex: 3; }
+  .scale span:nth-child(2) { flex: 3; }
+  .scale span:nth-child(3) { flex: 4; }
+
+  .reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .reasons li {
+    display: grid;
+    grid-template-columns: 76px 1fr auto;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .reasons li:first-child { border-top: 0; }
+  .src { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+  .txt { min-width: 0; overflow-wrap: anywhere; }
+  .pts { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .none { color: var(--muted); margin: 0; }
+
+  footer { color: var(--muted); font-size: 14px; max-width: 62ch; }
+  footer p { margin: 0 0 8px; }
+
+  @media (max-width: 480px) {
+    .reasons li { grid-template-columns: 1fr auto; }
+    .reasons .src { grid-column: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .marker { transition: left 0.35s ease; }
+  }
+</style>
+
+</head>
+<body>
+<main>
+  <header>
+    <h1>Cyberhack v1</h1>
+    <p class="sub">Paste an email's sender and message to see whether it looks like phishing, and why.</p>
+  </header>
+
+  <div class="panel" id="scan-form">
+    <div class="field">
+      <label for="sender">Sender</label>
+      <input type="text" id="sender" placeholder='PayPal Support <help@paypa1-security.com>'>
+    </div>
+    <div class="field">
+      <label for="body">Email text</label>
+      <textarea id="body" placeholder="Paste the message here, including any links."></textarea>
+    </div>
+    <div class="actions">
+      <button type="button" class="primary" id="scan-btn">Scan email</button>
+      <button type="button" class="ghost" id="clear-btn" style="margin-left:auto">Clear</button>
+    </div>
+    <p id="err" class="none" role="alert" hidden></p>
+    <div class="examples">
+      <span class="label">Try an example</span>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <section class="panel" id="result" aria-live="polite">
+    <div class="verdict-row">
+      <span class="pill" id="pill" data-level="safe">LOOKS SAFE</span>
+      <span class="score">Score <strong id="score">0</strong></span>
+    </div>
+    <div>
+      <div class="meter" aria-hidden="true">
+        <span class="z-safe"></span><span class="z-warn"></span><span class="z-danger"></span>
+        <i class="marker" id="marker" style="left:0%"></i>
+      </div>
+      <div class="scale" aria-hidden="true"><span>0 safe</span><span>3 suspicious</span><span>6+ dangerous</span></div>
+    </div>
+    <div>
+      <span class="label">What it found</span>
+      <ul class="reasons" id="reasons"></ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>The scan runs in your browser. Nothing you paste is sent anywhere.</p>
+    <p>Scores come from simple rules for links, senders and wording. They are rough signals and can miss scams or flag honest emails, so treat the verdict as a second opinion.</p>
+  </footer>
+</main>
+
+<script>
+window.addEventListener("error", function (e) {
+  var el = document.getElementById("err");
+  if (el) { el.hidden = false; el.textContent = "Something went wrong: " + e.message; }
+});
+// ==SCANNER==
+const brands = {
+  paypal: "paypal.com",
+  google: "google.com",
+  amazon: "amazon.com",
+  microsoft: "microsoft.com"
+};
+const freeMail = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"];
+const shorteners = ["bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd"];
+
+function isRealDomain(domain, real) {
+  return domain === real || domain.endsWith("." + real);
+}
+function deLeet(domain) {
+  return domain.split("1").join("l").split("0").join("o");
+}
+
+function checkLink(link) {
+  const domain = link.split("/")[2] || "";
+  let score = 0;
+  const found = [];
+  const add = (pts, text) => { score += pts; found.push({ src: "Link", pts, text }); };
+
+  if (shorteners.includes(domain)) add(4, "Shortened link hides the real destination: " + domain);
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(domain)) add(4, "Link goes to a raw IP address: " + domain);
+  if (/\d/.test(domain)) add(1, "Numbers in the domain: " + domain);
+  if (!link.startsWith("https")) add(1, "Link is not https: " + link);
+
+  const cleaned = deLeet(domain);
+  for (const [brand, real] of Object.entries(brands)) {
+    if (cleaned.includes(brand) && !isRealDomain(domain, real)) {
+      add(2, "Link looks like " + brand + " but is not " + real);
+    }
+  }
+  return { score, found };
+}
+
+function checkSender(sender) {
+  let score = 0;
+  const found = [];
+  const add = (pts, text) => { score += pts; found.push({ src: "Sender", pts, text }); };
+
+  const name = sender.split("<")[0].trim().toLowerCase();
+  const parts = sender.split("<");
+  const address = parts[parts.length - 1].replace(">", "").trim().toLowerCase();
+  const atParts = address.split("@");
+  const domain = atParts[atParts.length - 1];
+
+  for (const [brand, real] of Object.entries(brands)) {
+    if (name.includes(brand) && !isRealDomain(domain, real)) {
+      add(3, "Name says " + brand + " but the address is " + domain);
+    }
+  }
+  const cleaned = deLeet(domain);
+  for (const [brand, real] of Object.entries(brands)) {
+    if (cleaned.includes(brand) && !isRealDomain(domain, real)) {
+      add(2, "Sender domain looks like " + brand);
+    }
+  }
+  if (freeMail.includes(domain) && name.length > 0 && name !== address) {
+    add(1, "A named sender using a free email service");
+  }
+  const titles = ["boss", "ceo", "director", "manager", "president", "owner"];
+  if (freeMail.includes(domain)) {
+    for (const t of titles) {
+      if (name.includes(t)) add(2, "Authority title (" + t + ") using a free email service");
+    }
+  }
+  return { score, found };
+}
+
+function checkText(text) {
+  let score = 0;
+  const found = [];
+  const add = (pts, msg) => { score += pts; found.push({ src: "Message", pts, text: msg }); };
+  text = text.toLowerCase();
+
+  const urgent = ["urgent", "immediately", "act now", "within 24 hours", "account suspended", "final notice"];
+  const secrets = ["password", "verify your account", "confirm your identity", "social security", "your credit card", "gift card"];
+  const money = ["bank details", "to the new account", "new bank account", "wire transfer", "wire $", "new supplier", "keep it quiet", "send me the codes", "don't tell anyone"];
+  const prize = ["you won", "to claim", "lottery", "winner"];
+  const delivery = ["could not be delivered", "missed delivery"];
+
+  for (const p of urgent) if (text.includes(p)) add(1, "Pressure language: " + p);
+  for (const p of secrets) if (text.includes(p)) add(2, "Asks for sensitive info: " + p);
+  for (const p of money) if (text.includes(p)) add(3, "Money-movement request: " + p);
+  for (const p of prize) if (text.includes(p)) add(2, "Prize scam language: " + p);
+  for (const p of delivery) if (text.includes(p)) add(2, "Fake delivery notice: " + p);
+  return { score, found };
+}
+
+function scanEmail(sender, body) {
+  let total = 0;
+  let reasons = [];
+  const parts = [checkSender(sender), checkText(body)];
+  const links = body.match(/https?:\/\/[^\s]+/g) || [];
+  for (const l of links) parts.push(checkLink(l));
+  for (const p of parts) { total += p.score; reasons = reasons.concat(p.found); }
+
+  let verdict, level;
+  if (total >= 6) { verdict = "DANGEROUS"; level = "dangerous"; }
+  else if (total >= 3) { verdict = "SUSPICIOUS"; level = "suspicious"; }
+  else { verdict = "LOOKS SAFE"; level = "safe"; }
+  return { total, verdict, level, reasons };
+}
+// ==END SCANNER==
+
+const examples = [
+  { label: "Fake PayPal",
+    sender: "PayPal Support <help@paypa1-security.com>",
+    body: "URGENT: Your account will be suspended within 24 hours. Please verify your account and confirm your password immediately. Log in at http://paypa1.com/login" },
+  { label: "Fake boss",
+    sender: "Boss <ceo@gmail.com>",
+    body: "Buy gift card codes immediately and send them to me" },
+  { label: "Changed bank details",
+    sender: "Accounts <billing@acme-invoices.net>",
+    body: "Hi, we have changed our bank details. Please send all future payments to the new account. BSB 000-000 Account 12345678." },
+  { label: "Real Amazon",
+    sender: "Amazon <orders@amazon.com>",
+    body: "Your order shipped. Track it at https://amazon.com/track" },
+  { label: "Honest coworker",
+    sender: "Priya <priya@acme.com>",
+    body: "Hi, can you send me the credit card receipt from the conference? Urgent for the expense report, due Friday." }
+];
+
+const $ = (id) => document.getElementById(id);
+
+function render(r) {
+  const pill = $("pill");
+  pill.textContent = r.verdict;
+  pill.dataset.level = r.level;
+  $("score").textContent = r.total;
+  $("marker").style.left = Math.min(r.total, 10) * 10 + "%";
+
+  const ul = $("reasons");
+  ul.textContent = "";
+  if (r.reasons.length === 0) {
+    const p = document.createElement("p");
+    p.className = "none";
+    p.textContent = "No warning signs found.";
+    ul.appendChild(p);
+    return;
+  }
+  for (const item of r.reasons) {
+    const li = document.createElement("li");
+    const s = document.createElement("span"); s.className = "src"; s.textContent = item.src;
+    const t = document.createElement("span"); t.className = "txt"; t.textContent = item.text;
+    const p = document.createElement("span"); p.className = "pts"; p.textContent = "+" + item.pts;
+    li.append(s, t, p);
+    ul.appendChild(li);
+  }
+}
+
+function runScan() {
+  render(scanEmail($("sender").value, $("body").value));
+}
+
+$("scan-btn").addEventListener("click", runScan);
+$("sender").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); runScan(); }
+});
+$("clear-btn").addEventListener("click", () => {
+  $("sender").value = "";
+  $("body").value = "";
+  runScan();
+  $("sender").focus();
+});
+
+function loadExample(ex) {
+  $("sender").value = ex.sender;
+  $("body").value = ex.body;
+  runScan();
+}
+for (const ex of examples) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ghost";
+  b.textContent = ex.label;
+  b.addEventListener("click", () => loadExample(ex));
+  $("chips").appendChild(b);
+}
+
+loadExample(examples[0]);
+</script>
+</body>
+</html>
